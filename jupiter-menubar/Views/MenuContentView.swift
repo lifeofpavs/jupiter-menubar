@@ -18,82 +18,192 @@ struct MenuContentView: View {
             if settings.apiKey.isEmpty {
                 noKeyState
             } else {
-                Picker("", selection: $tab) {
-                    ForEach(MenuTab.allCases) { t in
-                        Text(t.rawValue).tag(t)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 12)
-                .padding(.top, 10)
-                .padding(.bottom, 4)
-
+                hero
+                TabBar(selection: $tab)
+                    .padding(.horizontal, Theme.Space.m + 2)
+                    .padding(.bottom, Theme.Space.s)
                 ScrollView {
-                    switch tab {
-                    case .portfolio:
-                        PortfolioSection(
-                            portfolios: viewModel.portfolios,
-                            wallets: settings.wallets,
-                            error: viewModel.portfolioError,
-                            onOpenSettings: { openWindow(id: "settings") }
-                        )
-                    case .lend:
-                        PositionsSection(
-                            positions: viewModel.positions,
-                            wallets: settings.wallets,
-                            error: viewModel.positionsError,
-                            onOpenSettings: { openWindow(id: "settings") }
-                        )
-                    case .trending:
-                        TrendingSection(
-                            tokens: viewModel.trending,
-                            error: viewModel.trendingError
-                        )
-                    }
+                    content
+                        .padding(.bottom, Theme.Space.s)
                 }
-                .frame(maxHeight: 460)
+                .frame(maxHeight: Theme.popoverMaxHeight)
             }
-            Divider()
             footer
         }
-        .frame(width: 360)
+        .frame(width: Theme.popoverWidth)
         .task { viewModel.start() }
     }
 
+    @ViewBuilder
+    private var content: some View {
+        switch tab {
+        case .portfolio:
+            PortfolioSection(
+                portfolios: viewModel.portfolios,
+                wallets: settings.wallets,
+                error: viewModel.portfolioError,
+                onOpenSettings: { openWindow(id: "settings") }
+            )
+            .transition(.opacity)
+        case .lend:
+            PositionsSection(
+                positions: viewModel.positions,
+                wallets: settings.wallets,
+                error: viewModel.positionsError,
+                onOpenSettings: { openWindow(id: "settings") }
+            )
+            .transition(.opacity)
+        case .trending:
+            TrendingSection(
+                tokens: viewModel.trending,
+                error: viewModel.trendingError
+            )
+            .transition(.opacity)
+        }
+    }
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Net worth")
+                .sectionLabel()
+            Text(Format.usd(grandTotal))
+                .heroNumber()
+                .contentTransition(.numericText())
+                .animation(.easeOut(duration: 0.4), value: grandTotal)
+            Text(updatedLabel)
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Theme.Space.m + 4)
+        .padding(.top, Theme.Space.l)
+        .padding(.bottom, Theme.Space.m)
+    }
+
+    private var grandTotal: Decimal {
+        viewModel.portfolios.map(\.total).reduce(0, +)
+    }
+
+    private var updatedLabel: String {
+        if settings.wallets.isEmpty {
+            return "Add a wallet to start tracking."
+        }
+        if let updated = viewModel.lastUpdated {
+            return "Updated \(updated.formatted(date: .omitted, time: .shortened)) · \(settings.wallets.count) wallet\(settings.wallets.count == 1 ? "" : "s")"
+        }
+        return "Refreshing…"
+    }
+
     private var noKeyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Theme.Space.m) {
             Image(systemName: "key.horizontal")
-                .font(.system(size: 22))
-                .foregroundStyle(.secondary)
-            Text("Add a Jupiter API key")
-                .font(.system(size: 12, weight: .semibold))
-            Text("Get one from portal.jup.ag, then paste it in Settings.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .font(.system(size: 32, weight: .light))
+                .foregroundStyle(.tertiary)
+            VStack(spacing: 4) {
+                Text("Add a Jupiter API key")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("Generate one at portal.jup.ag,\nthen paste it in Settings.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             Button("Open Settings…") { openWindow(id: "settings") }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .padding(.top, 4)
         }
-        .padding(20)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity)
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
-            if let updated = viewModel.lastUpdated {
-                Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+        HStack(spacing: 0) {
+            FooterButton(title: "Settings", systemImage: "gearshape") {
+                openWindow(id: "settings")
             }
             Spacer()
-            Button("Settings…") { openWindow(id: "settings") }
-                .buttonStyle(.borderless)
-                .font(.system(size: 11))
-            Button("Quit") { NSApplication.shared.terminate(nil) }
-                .buttonStyle(.borderless)
-                .font(.system(size: 11))
+            FooterButton(title: "Quit", systemImage: "power") {
+                NSApplication.shared.terminate(nil)
+            }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Theme.Space.s + 2)
         .padding(.vertical, 6)
+        .background(.quaternary.opacity(0.35))
+        .overlay(
+            Rectangle()
+                .frame(height: 0.5)
+                .foregroundStyle(.quaternary),
+            alignment: .top
+        )
+    }
+}
+
+private struct FooterButton: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 11, weight: .medium))
+                .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .foregroundStyle(hovering ? .primary : .secondary)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color.primary.opacity(hovering ? 0.08 : 0))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+}
+
+private struct TabBar: View {
+    @Binding var selection: MenuTab
+    @Namespace private var ns
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(MenuTab.allCases) { t in
+                tabButton(t)
+            }
+        }
+        .padding(3)
+        .background(
+            Capsule().fill(.quaternary.opacity(0.55))
+        )
+    }
+
+    private func tabButton(_ t: MenuTab) -> some View {
+        let selected = selection == t
+        return Button {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                selection = t
+            }
+        } label: {
+            Text(t.rawValue)
+                .font(.system(size: 12, weight: selected ? .semibold : .medium))
+                .foregroundStyle(selected ? .primary : .secondary)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity)
+                .background {
+                    if selected {
+                        Capsule()
+                            .fill(.background)
+                            .shadow(color: .black.opacity(0.12), radius: 2.5, y: 1)
+                            .matchedGeometryEffect(id: "selectedTab", in: ns)
+                    }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }

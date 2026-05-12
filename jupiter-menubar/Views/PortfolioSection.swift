@@ -7,119 +7,134 @@ struct PortfolioSection: View {
     let onOpenSettings: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-
+        VStack(alignment: .leading, spacing: Theme.Space.l) {
+            if let error {
+                ErrorBanner(text: error)
+                    .padding(.horizontal, Theme.Space.m)
+            }
             if wallets.isEmpty {
-                emptyState
+                EmptyState(
+                    icon: "wallet.pass",
+                    title: "No wallets yet",
+                    subtitle: "Add a Solana wallet in Settings\nto see your holdings here.",
+                    actionTitle: "Open Settings…",
+                    action: onOpenSettings
+                )
             } else if portfolios.isEmpty && error == nil {
-                Text("Loading…")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                LoadingRow()
             } else {
                 ForEach(portfolios) { p in
                     walletBlock(p)
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Total")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text(formatUsd(grandTotal))
-                    .font(.system(size: 18, weight: .bold))
-                    .monospacedDigit()
-            }
-            Spacer()
-            if let error {
-                Text(error)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.trailing)
-            }
-        }
-    }
-
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Add a wallet to view portfolio.")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-            Button("Open Settings…", action: onOpenSettings)
-                .font(.system(size: 11))
-                .buttonStyle(.link)
-        }
-    }
-
-    private var grandTotal: Decimal {
-        portfolios.map(\.total).reduce(0, +)
+        .padding(.horizontal, Theme.Space.m + 4)
     }
 
     private func walletBlock(_ p: WalletPortfolio) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Button {
-                    if let url = URL(string: "https://jup.ag/portfolio/\(p.wallet)") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Text(shortAddress(p.wallet))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .monospaced()
-                }
-                .buttonStyle(.plain)
-                .help("Open jup.ag/portfolio/\(p.wallet)")
-                Spacer()
-                Text(formatUsd(p.total))
-                    .font(.system(size: 12, weight: .semibold))
-                    .monospacedDigit()
-            }
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            walletHeader(p)
 
             if let err = p.error {
                 Text(err)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.red)
-            } else if p.elements.isEmpty && p.walletTokens.isEmpty {
+            } else if p.elements.isEmpty && visibleTokens(p).isEmpty {
                 Text("No holdings.")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
+                    .padding(.vertical, 4)
             } else {
-                if !p.walletTokens.isEmpty {
-                    WalletHoldingsGroup(tokens: p.walletTokens, total: p.walletTotal)
+                if !visibleTokens(p).isEmpty {
+                    holdingsBlock(visibleTokens(p), total: p.walletTotal)
                 }
-                ForEach(sorted(p.elements)) { el in
+                ForEach(sortedElements(p.elements)) { el in
                     PortfolioGroup(element: el, tokens: p.tokens)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.bottom, 2)
     }
 
-    private func sorted(_ elements: [PortfolioElement]) -> [PortfolioElement] {
-        elements
-            .filter { $0.rolledValue > 0 }
-            .sorted { $0.rolledValue > $1.rolledValue }
+    private func walletHeader(_ p: WalletPortfolio) -> some View {
+        Button {
+            if let url = URL(string: "https://jup.ag/portfolio/\(p.wallet)") {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(Format.shortAddress(p.wallet))
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Text(Format.usd(p.total))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.easeOut(duration: 0.4), value: p.total)
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Open jup.ag/portfolio/\(p.wallet)")
     }
 
-    private func shortAddress(_ a: String) -> String {
-        guard a.count > 10 else { return a }
-        return "\(a.prefix(4))…\(a.suffix(4))"
+    private func holdingsBlock(_ tokens: [WalletToken], total: Decimal) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Wallet")
+                    .sectionLabel()
+                Spacer()
+                Text(Format.usd(total))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, Theme.Space.s)
+            .padding(.top, 2)
+            ForEach(tokens) { t in
+                WalletTokenRow(token: t)
+            }
+        }
     }
 
-    private func formatUsd(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "USD"
-        f.maximumFractionDigits = 2
-        return f.string(from: d as NSDecimalNumber) ?? "$0"
+    private func sortedElements(_ elements: [PortfolioElement]) -> [PortfolioElement] {
+        elements.filter { $0.rolledValue > 0 }.sorted { $0.rolledValue > $1.rolledValue }
+    }
+
+    private func visibleTokens(_ p: WalletPortfolio) -> [WalletToken] {
+        p.walletTokens
+            .filter { ($0.usdValue ?? 0) >= 0.01 }
+            .sorted { ($0.usdValue ?? 0) > ($1.usdValue ?? 0) }
+    }
+}
+
+private struct WalletTokenRow: View {
+    let token: WalletToken
+
+    var body: some View {
+        HoverableRow {
+            HStack(spacing: Theme.Space.s) {
+                TokenIcon(url: token.icon, fallback: token.symbol, size: 22)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(token.symbol)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                    Text(Format.amount(token.amount))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 4)
+                if let usd = token.usdValue {
+                    Text(Format.usd(usd))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
 
@@ -129,41 +144,36 @@ private struct PortfolioGroup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(element.typeLabel)
-                    .font(.system(size: 11, weight: .semibold))
+                    .sectionLabel()
                 if element.displayTitle != element.typeLabel {
-                    Text("· \(element.displayTitle)")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                    Text("·")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.quaternary)
+                    Text(element.displayTitle)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
                 Spacer()
-                Text(formatUsd(element.rolledValue))
-                    .font(.system(size: 11, weight: .medium))
+                Text(Format.usd(element.rolledValue))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
-            if !visibleAssets.isEmpty {
-                ForEach(visibleAssets) { a in
-                    AssetRow(asset: a, tokens: tokens)
-                }
+            .padding(.horizontal, Theme.Space.s)
+            .padding(.top, 6)
+            ForEach(visibleAssets) { a in
+                AssetRow(asset: a, tokens: tokens)
             }
         }
-        .padding(.vertical, 2)
     }
 
     private var visibleAssets: [PortfolioAsset] {
         element.assets
             .filter { ($0.value ?? 0) > 0 || ($0.amount ?? 0) > 0 }
             .sorted { ($0.value ?? 0) > ($1.value ?? 0) }
-    }
-
-    private func formatUsd(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "USD"
-        f.maximumFractionDigits = 2
-        return f.string(from: d as NSDecimalNumber) ?? "$0"
     }
 }
 
@@ -172,32 +182,33 @@ private struct AssetRow: View {
     let tokens: TokenInfoMap?
 
     var body: some View {
-        HStack(spacing: 6) {
-            if let tag = asset.tag {
-                Text(tag)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.tertiary)
-                    .textCase(.uppercase)
-            }
-            Text(symbol)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 44, alignment: .leading)
-            if let amount = asset.amount {
-                Text(formatAmount(amount))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
-            }
-            Spacer()
-            if let value = asset.value {
-                Text(formatUsd(value))
-                    .font(.system(size: 10))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+        HoverableRow {
+            HStack(spacing: Theme.Space.s) {
+                TokenIcon(url: nil, fallback: symbol, size: 20)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 4) {
+                        Text(symbol)
+                            .font(.system(size: 12, weight: .semibold))
+                        if let tag = asset.tag {
+                            TagPill(tag: tag)
+                        }
+                    }
+                    if let amount = asset.amount {
+                        Text(Format.amount(amount))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                    }
+                }
+                Spacer(minLength: 4)
+                if let value = asset.value {
+                    Text(Format.usd(value))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
             }
         }
-        .padding(.leading, 8)
     }
 
     private var symbol: String {
@@ -205,96 +216,26 @@ private struct AssetRow: View {
         if let addr = asset.address { return String(addr.prefix(4)) }
         return "—"
     }
-
-    private func formatAmount(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.maximumFractionDigits = d < 1 ? 4 : 2
-        f.minimumFractionDigits = 0
-        return f.string(from: d as NSDecimalNumber) ?? "0"
-    }
-
-    private func formatUsd(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "USD"
-        f.maximumFractionDigits = 2
-        return f.string(from: d as NSDecimalNumber) ?? "$0"
-    }
 }
 
-private struct WalletHoldingsGroup: View {
-    let tokens: [WalletToken]
-    let total: Decimal
+private struct TagPill: View {
+    let tag: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text("Wallet")
-                    .font(.system(size: 11, weight: .semibold))
-                Spacer()
-                Text(formatUsd(total))
-                    .font(.system(size: 11, weight: .medium))
-                    .monospacedDigit()
-            }
-            ForEach(visible) { t in
-                WalletTokenRow(token: t)
-            }
+        Text(tag.uppercased())
+            .font(.system(size: 8, weight: .bold))
+            .tracking(0.4)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(color.opacity(0.18)))
+            .foregroundStyle(color)
+    }
+
+    private var color: Color {
+        switch tag {
+        case "supplied", "reward": return .green
+        case "borrowed": return .red
+        default: return .gray
         }
-        .padding(.vertical, 2)
-    }
-
-    private var visible: [WalletToken] {
-        tokens
-            .filter { ($0.usdValue ?? 0) >= 0.01 }
-            .sorted { ($0.usdValue ?? 0) > ($1.usdValue ?? 0) }
-    }
-
-    private func formatUsd(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "USD"
-        f.maximumFractionDigits = 2
-        return f.string(from: d as NSDecimalNumber) ?? "$0"
-    }
-}
-
-private struct WalletTokenRow: View {
-    let token: WalletToken
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(token.symbol)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 44, alignment: .leading)
-                .lineLimit(1)
-            Text(formatAmount(token.amount))
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
-                .monospacedDigit()
-            Spacer()
-            if let value = token.usdValue {
-                Text(formatUsd(value))
-                    .font(.system(size: 10))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.leading, 8)
-    }
-
-    private func formatAmount(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.maximumFractionDigits = d < 1 ? 4 : 2
-        f.minimumFractionDigits = 0
-        return f.string(from: d as NSDecimalNumber) ?? "0"
-    }
-
-    private func formatUsd(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "USD"
-        f.maximumFractionDigits = 2
-        return f.string(from: d as NSDecimalNumber) ?? "$0"
     }
 }

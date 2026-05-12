@@ -5,99 +5,109 @@ struct TrendingSection: View {
     let error: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Trending (24h)")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Trending · 24h")
+                    .sectionLabel()
                 Spacer()
-                if let error {
-                    Text(error)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.red)
-                        .lineLimit(1)
-                }
+                Text("Tap to buy")
+                    .sectionLabel()
+                    .opacity(0.55)
+            }
+            .padding(.horizontal, Theme.Space.s)
+            .padding(.top, 2)
+
+            if let error {
+                ErrorBanner(text: error)
             }
             if tokens.isEmpty && error == nil {
-                Text("Loading…")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                LoadingRow()
             } else {
-                ForEach(tokens) { token in
-                    Button {
-                        if let url = URL(string: "https://jup.ag/?buy=\(token.id)") {
-                            NSWorkspace.shared.open(url)
+                VStack(spacing: 0) {
+                    ForEach(Array(tokens.enumerated()), id: \.element.id) { i, token in
+                        Button {
+                            if let url = URL(string: "https://jup.ag/?buy=\(token.id)") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        } label: {
+                            TrendingRow(rank: i + 1, token: token)
                         }
-                    } label: {
-                        TrendingRow(token: token)
-                            .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        .help("Open jup.ag/?buy=\(token.symbol)")
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Theme.Space.m + 4)
     }
 }
 
 private struct TrendingRow: View {
+    let rank: Int
     let token: TrendingToken
 
     var body: some View {
-        HStack(spacing: 8) {
-            AsyncImage(url: token.icon) { phase in
-                switch phase {
-                case .success(let image): image.resizable().scaledToFit()
-                default: Circle().fill(Color.secondary.opacity(0.2))
-                }
-            }
-            .frame(width: 18, height: 18)
-            .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 4) {
-                    Text(token.symbol)
-                        .font(.system(size: 12, weight: .semibold))
-                    if token.isSus {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.orange)
-                    }
-                }
-                Text(token.name)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(formatPrice(token.usdPrice))
-                    .font(.system(size: 12, weight: .medium))
+        HoverableRow {
+            HStack(spacing: Theme.Space.s) {
+                Text("\(rank)")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.tertiary)
                     .monospacedDigit()
-                if let change = token.priceChange24h {
-                    Text(formatPercent(change))
+                    .frame(width: 16, alignment: .trailing)
+
+                TokenIcon(url: token.icon, fallback: token.symbol, size: 26)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 4) {
+                        Text(token.symbol)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                        if token.isSus {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.orange)
+                                .help("Flagged as suspicious")
+                        }
+                    }
+                    Text(token.name)
                         .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 4)
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(Format.price(token.usdPrice))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(change >= 0 ? .green : .red)
+                    if let change = token.priceChange24h {
+                        ChangePill(value: change)
+                    }
                 }
             }
         }
     }
+}
 
-    private func formatPrice(_ price: Decimal?) -> String {
-        guard let price else { return "—" }
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "USD"
-        f.maximumFractionDigits = price < 1 ? 6 : 2
-        return f.string(from: price as NSDecimalNumber) ?? "—"
-    }
+private struct ChangePill: View {
+    let value: Decimal
 
-    private func formatPercent(_ value: Decimal) -> String {
-        let v = (value as NSDecimalNumber).doubleValue
-        return String(format: "%+.2f%%", v)
+    var body: some View {
+        let positive = value >= 0
+        let magnitude = abs((value as NSDecimalNumber).doubleValue)
+        HStack(spacing: 2) {
+            Image(systemName: positive ? "arrow.up" : "arrow.down")
+                .font(.system(size: 7, weight: .bold))
+            Text(String(format: "%.2f%%", magnitude))
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .monospacedDigit()
+        }
+        .foregroundStyle(positive ? .green : .red)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 1.5)
+        .background(
+            Capsule().fill((positive ? Color.green : Color.red).opacity(0.14))
+        )
     }
 }

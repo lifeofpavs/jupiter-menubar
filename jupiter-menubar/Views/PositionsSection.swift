@@ -7,49 +7,36 @@ struct PositionsSection: View {
     let onOpenSettings: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Lend Positions")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let error {
-                    Text(error)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.red)
-                        .lineLimit(1)
-                }
+        VStack(alignment: .leading, spacing: Theme.Space.l) {
+            if let error {
+                ErrorBanner(text: error)
+                    .padding(.horizontal, Theme.Space.m)
             }
-
             if wallets.isEmpty {
-                emptyState
+                EmptyState(
+                    icon: "leaf",
+                    title: "No wallets to track",
+                    subtitle: "Add a wallet in Settings to see\nyour Jupiter Lend positions.",
+                    actionTitle: "Open Settings…",
+                    action: onOpenSettings
+                )
             } else if positions.isEmpty && error == nil {
-                Text("Loading…")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                LoadingRow()
             } else if groupedByWallet.isEmpty {
-                Text("No active positions.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                EmptyState(
+                    icon: "leaf",
+                    title: "No active lend positions",
+                    subtitle: "Visit jup.ag/lend to deposit\nand start earning yield.",
+                    actionTitle: nil,
+                    action: nil
+                )
             } else {
                 ForEach(groupedByWallet, id: \.0) { wallet, group in
                     walletGroup(wallet: wallet, items: group)
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Add a wallet to track lending positions.")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-            Button("Open Settings…", action: onOpenSettings)
-                .font(.system(size: 11))
-                .buttonStyle(.link)
-        }
+        .padding(.horizontal, Theme.Space.m + 4)
     }
 
     private var groupedByWallet: [(String, [LendPosition])] {
@@ -62,20 +49,21 @@ struct PositionsSection: View {
     }
 
     private func walletGroup(wallet: String, items: [LendPosition]) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(shortAddress(wallet))
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .monospaced()
-            ForEach(items) { p in
-                PositionRow(position: p)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(Format.shortAddress(wallet))
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                Spacer()
+                Text("\(items.count) position\(items.count == 1 ? "" : "s")")
+                    .sectionLabel()
+            }
+            VStack(spacing: 0) {
+                ForEach(items) { p in
+                    PositionRow(position: p)
+                }
             }
         }
-    }
-
-    private func shortAddress(_ a: String) -> String {
-        guard a.count > 10 else { return a }
-        return "\(a.prefix(4))…\(a.suffix(4))"
+        .padding(.bottom, 2)
     }
 }
 
@@ -83,45 +71,43 @@ private struct PositionRow: View {
     let position: LendPosition
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text(position.token.displaySymbol)
-                .font(.system(size: 12, weight: .semibold))
-                .frame(minWidth: 50, alignment: .leading)
-
-            Text(formatAmount(position.underlyingAmount))
-                .font(.system(size: 11))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 1) {
-                if let usd = position.underlyingUsd {
-                    Text(formatUsd(usd))
-                        .font(.system(size: 12, weight: .medium))
+        HoverableRow {
+            HStack(spacing: Theme.Space.s) {
+                TokenIcon(url: nil, fallback: position.token.displaySymbol, size: 24)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(position.token.displaySymbol)
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(Format.amount(position.underlyingAmount, maxFractionDigits: 4))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
                         .monospacedDigit()
                 }
-                if let apr = position.token.aprPercent {
-                    Text(String(format: "%.2f%% APR", (apr as NSDecimalNumber).doubleValue))
-                        .font(.system(size: 10))
-                        .foregroundStyle(.green)
+                Spacer(minLength: 4)
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let usd = position.underlyingUsd {
+                        Text(Format.usd(usd))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                    }
+                    if let apr = position.token.aprPercent {
+                        AprPill(value: apr)
+                    }
                 }
             }
         }
     }
+}
 
-    private func formatAmount(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.maximumFractionDigits = d < 1 ? 6 : 4
-        f.minimumFractionDigits = 0
-        return f.string(from: d as NSDecimalNumber) ?? "0"
-    }
+private struct AprPill: View {
+    let value: Decimal
 
-    private func formatUsd(_ d: Decimal) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "USD"
-        f.maximumFractionDigits = 2
-        return f.string(from: d as NSDecimalNumber) ?? "$0"
+    var body: some View {
+        Text(String(format: "%.2f%% APR", (value as NSDecimalNumber).doubleValue))
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .tracking(0.2)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1.5)
+            .background(Capsule().fill(.green.opacity(0.16)))
+            .foregroundStyle(.green)
     }
 }
