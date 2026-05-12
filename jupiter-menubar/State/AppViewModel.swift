@@ -6,9 +6,11 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var positions: [LendPosition] = []
     @Published private(set) var trending: [TrendingToken] = []
     @Published private(set) var portfolios: [WalletPortfolio] = []
+    @Published private(set) var lendMarkets: [LendMarket] = []
     @Published private(set) var positionsError: String?
     @Published private(set) var trendingError: String?
     @Published private(set) var portfolioError: String?
+    @Published private(set) var lendMarketsError: String?
     @Published private(set) var lastUpdated: Date?
 
     private let settings: SettingsStore
@@ -21,6 +23,9 @@ final class AppViewModel: ObservableObject {
     private var positionsBackoff: TimeInterval = 0
     private var trendingBackoff: TimeInterval = 0
     private var portfolioBackoff: TimeInterval = 0
+    private var marketsBackoff: TimeInterval = 0
+    private var marketsLastFetched: Date?
+    private let marketsRefreshInterval: TimeInterval = 60
     private let baseInterval: TimeInterval = 5
     private let maxBackoff: TimeInterval = 60
 
@@ -53,8 +58,31 @@ final class AppViewModel: ObservableObject {
         async let positionsResult: () = refreshPositions()
         async let trendingResult: () = refreshTrending()
         async let portfolioResult: () = refreshPortfolios()
-        _ = await (positionsResult, trendingResult, portfolioResult)
+        async let marketsResult: () = refreshLendMarkets()
+        _ = await (positionsResult, trendingResult, portfolioResult, marketsResult)
         lastUpdated = Date()
+    }
+
+    private func refreshLendMarkets() async {
+        if marketsBackoff > 0 {
+            marketsBackoff = max(0, marketsBackoff - baseInterval)
+            return
+        }
+        if let last = marketsLastFetched, Date().timeIntervalSince(last) < marketsRefreshInterval, !lendMarkets.isEmpty {
+            return
+        }
+        do {
+            lendMarkets = try await lend.markets()
+            lendMarketsError = nil
+            marketsLastFetched = Date()
+        } catch let error as JupiterError {
+            lendMarketsError = error.errorDescription
+            if case .rateLimited(let retry) = error {
+                marketsBackoff = min(maxBackoff, retry)
+            }
+        } catch {
+            lendMarketsError = error.localizedDescription
+        }
     }
 
     private func refreshPortfolios() async {

@@ -223,4 +223,20 @@ enum Format {
         guard a.count > 10 else { return a }
         return "\(a.prefix(4))…\(a.suffix(4))"
     }
+
+    static func compactUsd(_ d: Decimal) -> String {
+        let v = (d as NSDecimalNumber).doubleValue
+        let abs = Swift.abs(v)
+        let sign = v < 0 ? "-" : ""
+        switch abs {
+        case 1_000_000_000...:
+            return "\(sign)$\(String(format: "%.2f", abs / 1_000_000_000))B"
+        case 1_000_000...:
+            return "\(sign)$\(String(format: "%.2f", abs / 1_000_000))M"
+        case 1_000...:
+            return "\(sign)$\(String(format: "%.1f", abs / 1_000))K"
+        default:
+            return "\(sign)$\(String(format: "%.0f", abs))"
+        }
+    }
 }

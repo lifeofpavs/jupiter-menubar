@@ -2,16 +2,39 @@ import SwiftUI
 
 struct PositionsSection: View {
     let positions: [LendPosition]
+    let markets: [LendMarket]
     let wallets: [String]
-    let error: String?
+    let positionsError: String?
+    let marketsError: String?
     let onOpenSettings: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.l) {
-            if let error {
-                ErrorBanner(text: error)
-                    .padding(.horizontal, Theme.Space.m)
+            if !wallets.isEmpty || !groupedByWallet.isEmpty {
+                positionsBlock
             }
+            marketsBlock
+            exploreBlock
+        }
+        .padding(.horizontal, Theme.Space.m + 4)
+    }
+
+    @ViewBuilder
+    private var positionsBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Your positions")
+                    .sectionLabel()
+                Spacer()
+                if let pe = positionsError {
+                    Text(pe)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.red)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, Theme.Space.s)
+
             if wallets.isEmpty {
                 EmptyState(
                     icon: "leaf",
@@ -20,23 +43,91 @@ struct PositionsSection: View {
                     actionTitle: "Open Settings…",
                     action: onOpenSettings
                 )
-            } else if positions.isEmpty && error == nil {
+            } else if positions.isEmpty && positionsError == nil {
                 LoadingRow()
             } else if groupedByWallet.isEmpty {
-                EmptyState(
-                    icon: "leaf",
-                    title: "No active lend positions",
-                    subtitle: "Visit jup.ag/lend to deposit\nand start earning yield.",
-                    actionTitle: nil,
-                    action: nil
-                )
+                Text("No active positions. Deposit at jup.ag/lend to start earning.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, Theme.Space.s)
+                    .padding(.vertical, 4)
             } else {
                 ForEach(groupedByWallet, id: \.0) { wallet, group in
                     walletGroup(wallet: wallet, items: group)
                 }
             }
         }
-        .padding(.horizontal, Theme.Space.m + 4)
+    }
+
+    private var marketsBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Lend markets")
+                    .sectionLabel()
+                Spacer()
+                Text("APY · TVL")
+                    .sectionLabel()
+                    .opacity(0.55)
+            }
+            .padding(.horizontal, Theme.Space.s)
+
+            if let marketsError {
+                ErrorBanner(text: marketsError)
+            }
+            if markets.isEmpty && marketsError == nil {
+                LoadingRow()
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(sortedMarkets) { m in
+                        Button {
+                            if let url = URL(string: "https://jup.ag/lend") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        } label: {
+                            MarketRow(market: m)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Open jup.ag/lend")
+                    }
+                }
+            }
+        }
+    }
+
+    private var exploreBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Explore on jup.ag")
+                .sectionLabel()
+                .padding(.horizontal, Theme.Space.s)
+
+            HStack(spacing: Theme.Space.s) {
+                ExploreCard(
+                    title: "Multiply",
+                    subtitle: "Looped yield",
+                    icon: "arrow.triangle.2.circlepath",
+                    accent: .purple,
+                    url: "https://jup.ag/lend/multiply"
+                )
+                ExploreCard(
+                    title: "Strategies",
+                    subtitle: "Auto-managed",
+                    icon: "wand.and.stars",
+                    accent: .blue,
+                    url: "https://jup.ag/lend/strategies"
+                )
+                ExploreCard(
+                    title: "Borrow",
+                    subtitle: "Against collateral",
+                    icon: "arrow.up.arrow.down",
+                    accent: .orange,
+                    url: "https://jup.ag/lend/borrow"
+                )
+            }
+        }
+    }
+
+    private var sortedMarkets: [LendMarket] {
+        markets.sorted { ($0.aprPercent ?? 0) > ($1.aprPercent ?? 0) }
     }
 
     private var groupedByWallet: [(String, [LendPosition])] {
@@ -98,16 +189,94 @@ private struct PositionRow: View {
     }
 }
 
+private struct MarketRow: View {
+    let market: LendMarket
+
+    var body: some View {
+        HoverableRow {
+            HStack(spacing: Theme.Space.s) {
+                TokenIcon(url: market.iconURL, fallback: market.displaySymbol, size: 22)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(market.displaySymbol)
+                        .font(.system(size: 12, weight: .semibold))
+                    if let tvl = market.tvlUsd {
+                        Text("TVL \(Format.compactUsd(tvl))")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                    }
+                }
+                Spacer(minLength: 4)
+                if let apr = market.aprPercent {
+                    AprPill(value: apr)
+                }
+            }
+        }
+    }
+}
+
 private struct AprPill: View {
     let value: Decimal
 
     var body: some View {
-        Text(String(format: "%.2f%% APR", (value as NSDecimalNumber).doubleValue))
+        Text(String(format: "%.2f%% APY", (value as NSDecimalNumber).doubleValue))
             .font(.system(size: 9, weight: .bold, design: .rounded))
             .tracking(0.2)
             .padding(.horizontal, 5)
             .padding(.vertical, 1.5)
             .background(Capsule().fill(.green.opacity(0.16)))
             .foregroundStyle(.green)
+    }
+}
+
+private struct ExploreCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let accent: Color
+    let url: String
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            if let u = URL(string: url) {
+                NSWorkspace.shared.open(u)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(accent)
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(subtitle)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.2)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.m, style: .continuous)
+                    .fill(accent.opacity(hovering ? 0.16 : 0.10))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.m, style: .continuous)
+                    .strokeBorder(accent.opacity(hovering ? 0.35 : 0.18), lineWidth: 0.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
+        .help("Open \(url)")
     }
 }

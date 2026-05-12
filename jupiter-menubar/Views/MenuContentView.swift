@@ -48,8 +48,10 @@ struct MenuContentView: View {
         case .lend:
             PositionsSection(
                 positions: viewModel.positions,
+                markets: viewModel.lendMarkets,
                 wallets: settings.wallets,
-                error: viewModel.positionsError,
+                positionsError: viewModel.positionsError,
+                marketsError: viewModel.lendMarketsError,
                 onOpenSettings: { openWindow(id: "settings") }
             )
             .transition(.opacity)

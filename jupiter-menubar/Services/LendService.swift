@@ -12,4 +12,8 @@ struct LendService {
         let csv = wallets.joined(separator: ",")
         return try await client.get("/lend/v1/earn/positions", query: ["users": csv])
     }
+
+    func markets() async throws -> [LendMarket] {
+        try await client.get("/lend/v1/earn/tokens")
+    }
 }
