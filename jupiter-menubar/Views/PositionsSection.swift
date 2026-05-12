@@ -133,6 +133,10 @@ struct PositionsSection: View {
         }
     }
 
+    private var marketsByAddress: [String: LendMarket] {
+        Dictionary(uniqueKeysWithValues: markets.map { ($0.address, $0) })
+    }
+
     private func walletGroup(wallet: String, items: [LendPosition]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
@@ -144,7 +148,7 @@ struct PositionsSection: View {
             }
             VStack(spacing: 0) {
                 ForEach(items) { p in
-                    PositionRow(position: p)
+                    PositionRow(position: p, market: marketsByAddress[p.token.address])
                 }
             }
         }
@@ -154,27 +158,44 @@ struct PositionsSection: View {
 
 private struct PositionRow: View {
     let position: LendPosition
+    let market: LendMarket?
+
+    private var displaySymbol: String {
+        market?.asset?.symbol ?? position.token.displaySymbol
+    }
+
+    private var derivedUsd: Decimal? {
+        if let usd = position.underlyingUsd { return usd }
+        if let priceStr = market?.asset?.price, let price = Decimal(string: priceStr) {
+            return position.underlyingAmount * price
+        }
+        return nil
+    }
+
+    private var derivedApr: Decimal? {
+        position.token.aprPercent ?? market?.aprPercent
+    }
 
     var body: some View {
         HoverableRow {
             HStack(spacing: Theme.Space.s) {
-                TokenIcon(url: nil, fallback: position.token.displaySymbol, size: 24)
+                TokenIcon(url: market?.iconURL, fallback: displaySymbol, size: 24)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(position.token.displaySymbol)
+                    Text(displaySymbol)
                         .font(.system(size: 12, weight: .semibold))
-                    Text(Format.amount(position.underlyingAmount, maxFractionDigits: 4))
+                    Text(Format.amount(position.underlyingAmount))
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                         .monospacedDigit()
                 }
                 Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 2) {
-                    if let usd = position.underlyingUsd {
+                    if let usd = derivedUsd {
                         Text(Format.usd(usd))
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                     }
-                    if let apr = position.token.aprPercent {
+                    if let apr = derivedApr {
                         AprPill(value: apr)
                     }
                 }
