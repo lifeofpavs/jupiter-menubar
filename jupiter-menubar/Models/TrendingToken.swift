@@ -1,6 +1,6 @@
 import Foundation
 
-struct TrendingToken: Decodable, Identifiable, Hashable {
+struct TrendingToken: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let symbol: String
@@ -38,11 +38,26 @@ struct TrendingToken: Decodable, Identifiable, Hashable {
         stats24h = try c.decodeIfPresent(IntervalStats.self, forKey: .stats24h)
     }
 
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(symbol, forKey: .symbol)
+        try c.encodeIfPresent(icon?.absoluteString, forKey: .icon)
+        try c.encodeIfPresent(usdPrice, forKey: .usdPrice)
+        try c.encodeIfPresent(mcap, forKey: .mcap)
+        try c.encodeIfPresent(liquidity, forKey: .liquidity)
+        try c.encodeIfPresent(isVerified, forKey: .isVerified)
+        try c.encodeIfPresent(organicScoreLabel, forKey: .organicScoreLabel)
+        try c.encodeIfPresent(audit, forKey: .audit)
+        try c.encodeIfPresent(stats24h, forKey: .stats24h)
+    }
+
     var priceChange24h: Decimal? { stats24h?.priceChange }
     var isSus: Bool { audit?.isSus ?? false }
 }
 
-struct Audit: Decodable, Hashable {
+struct Audit: Codable, Hashable {
     let isSus: Bool?
 
     enum CodingKeys: String, CodingKey { case isSus }
@@ -50,9 +65,14 @@ struct Audit: Decodable, Hashable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         isSus = try c.decodeIfPresent(Bool.self, forKey: .isSus)
     }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(isSus, forKey: .isSus)
+    }
 }
 
-struct IntervalStats: Decodable, Hashable {
+struct IntervalStats: Codable, Hashable {
     let priceChange: Decimal?
     let volumeChange: Decimal?
 
@@ -62,5 +82,11 @@ struct IntervalStats: Decodable, Hashable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         priceChange = try c.decodeDecimalIfPresent(forKey: .priceChange)
         volumeChange = try c.decodeDecimalIfPresent(forKey: .volumeChange)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(priceChange, forKey: .priceChange)
+        try c.encodeIfPresent(volumeChange, forKey: .volumeChange)
     }
 }

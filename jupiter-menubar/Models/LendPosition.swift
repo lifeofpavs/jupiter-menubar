@@ -1,6 +1,6 @@
 import Foundation
 
-struct LendPosition: Decodable, Identifiable, Hashable {
+struct LendPosition: Codable, Identifiable, Hashable {
     let token: TokenInfo
     let ownerAddress: String
     let shares: String
@@ -20,7 +20,7 @@ struct LendPosition: Decodable, Identifiable, Hashable {
     }
 }
 
-struct TokenInfo: Decodable, Hashable {
+struct TokenInfo: Codable, Hashable {
     let address: String
     let symbol: String
     let name: String
@@ -50,6 +50,20 @@ struct TokenInfo: Decodable, Hashable {
         supplyRate = try c.decodeDecimalIfPresent(forKey: .supplyRate)
         rewardsRate = try c.decodeDecimalIfPresent(forKey: .rewardsRate)
         totalRate = try c.decodeDecimalIfPresent(forKey: .totalRate)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(address, forKey: .address)
+        try c.encode(symbol, forKey: .symbol)
+        try c.encode(name, forKey: .name)
+        try c.encode(decimals, forKey: .decimals)
+        try c.encodeIfPresent(assetSymbol, forKey: .assetSymbol)
+        try c.encodeIfPresent(assetUsdPrice, forKey: .assetUsdPrice)
+        try c.encodeIfPresent(usdPrice, forKey: .usdPrice)
+        try c.encodeIfPresent(supplyRate, forKey: .supplyRate)
+        try c.encodeIfPresent(rewardsRate, forKey: .rewardsRate)
+        try c.encodeIfPresent(totalRate, forKey: .totalRate)
     }
 
     var displaySymbol: String { assetSymbol ?? symbol }

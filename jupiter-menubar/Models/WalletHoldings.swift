@@ -42,7 +42,7 @@ struct UltraTokenAccount: Decodable {
     }
 }
 
-struct WalletToken: Identifiable, Hashable {
+struct WalletToken: Codable, Identifiable, Hashable {
     let mint: String
     let symbol: String
     let icon: URL?

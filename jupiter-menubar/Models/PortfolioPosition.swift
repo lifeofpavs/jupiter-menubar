@@ -15,7 +15,7 @@ struct PortfolioResponse: Decodable {
     }
 }
 
-struct TokenInfoMap: Decodable {
+struct TokenInfoMap: Codable {
     let solana: [String: PortfolioTokenInfo]?
 
     enum CodingKeys: String, CodingKey { case solana }
@@ -24,17 +24,22 @@ struct TokenInfoMap: Decodable {
         solana = try c.decodeIfPresent([String: PortfolioTokenInfo].self, forKey: .solana)
     }
 
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(solana, forKey: .solana)
+    }
+
     func symbol(for address: String) -> String? { solana?[address]?.symbol }
 }
 
-struct PortfolioTokenInfo: Decodable, Hashable {
+struct PortfolioTokenInfo: Codable, Hashable {
     let address: String
     let symbol: String
     let name: String?
     let decimals: Int?
 }
 
-struct PortfolioElement: Decodable, Identifiable {
+struct PortfolioElement: Codable, Identifiable {
     let type: String
     let label: String?
     let value: Decimal?
@@ -77,6 +82,17 @@ struct PortfolioElement: Decodable, Identifiable {
         assets = collected
     }
 
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(type, forKey: .type)
+        try c.encodeIfPresent(label, forKey: .label)
+        try c.encodeIfPresent(value, forKey: .value)
+        try c.encodeIfPresent(platformId, forKey: .platformId)
+        try c.encodeIfPresent(networkId, forKey: .networkId)
+        var dataContainer = c.nestedContainer(keyedBy: DataKeys.self, forKey: .data)
+        try dataContainer.encode(assets, forKey: .assets)
+    }
+
     var typeLabel: String {
         switch type {
         case "multiple": return label ?? "Wallet"
@@ -99,7 +115,7 @@ struct PortfolioElement: Decodable, Identifiable {
     }
 }
 
-struct PortfolioAsset: Decodable, Identifiable {
+struct PortfolioAsset: Codable, Identifiable {
     let type: String?
     let value: Decimal?
     let address: String?
@@ -107,7 +123,7 @@ struct PortfolioAsset: Decodable, Identifiable {
     let price: Decimal?
     var tag: String?
 
-    enum CodingKeys: String, CodingKey { case type, value, data }
+    enum CodingKeys: String, CodingKey { case type, value, data, tag }
     enum InnerDataKeys: String, CodingKey { case address, amount, price }
 
     var id: String { "\(address ?? UUID().uuidString)-\(tag ?? "")" }
@@ -125,7 +141,18 @@ struct PortfolioAsset: Decodable, Identifiable {
             amount = nil
             price = nil
         }
-        tag = nil
+        tag = try c.decodeIfPresent(String.self, forKey: .tag)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(type, forKey: .type)
+        try c.encodeIfPresent(value, forKey: .value)
+        try c.encodeIfPresent(tag, forKey: .tag)
+        var inner = c.nestedContainer(keyedBy: InnerDataKeys.self, forKey: .data)
+        try inner.encodeIfPresent(address, forKey: .address)
+        try inner.encodeIfPresent(amount, forKey: .amount)
+        try inner.encodeIfPresent(price, forKey: .price)
     }
 
     func tagging(_ t: String) -> PortfolioAsset {
@@ -135,7 +162,7 @@ struct PortfolioAsset: Decodable, Identifiable {
     }
 }
 
-struct WalletPortfolio: Identifiable {
+struct WalletPortfolio: Codable, Identifiable {
     let wallet: String
     let elements: [PortfolioElement]
     let tokens: TokenInfoMap?

@@ -223,19 +223,19 @@ private struct TagPill: View {
 
     var body: some View {
         Text(tag.uppercased())
-            .font(.system(size: 8, weight: .bold))
-            .tracking(0.4)
+            .font(.system(size: 8, weight: .heavy, design: .rounded))
+            .tracking(0.3)
             .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Capsule().fill(color.opacity(0.18)))
-            .foregroundStyle(color)
+            .padding(.vertical, 1.5)
+            .foregroundStyle(.white)
+            .background(Capsule().fill(color))
     }
 
     private var color: Color {
         switch tag {
-        case "supplied", "reward": return .green
-        case "borrowed": return .red
-        default: return .gray
+        case "supplied", "reward": return Color(red: 0.18, green: 0.55, blue: 0.30)
+        case "borrowed": return Color(red: 0.78, green: 0.22, blue: 0.22)
+        default: return Color(white: 0.45)
         }
     }
 }

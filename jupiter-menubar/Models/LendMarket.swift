@@ -1,6 +1,6 @@
 import Foundation
 
-struct LendMarket: Decodable, Identifiable, Hashable {
+struct LendMarket: Codable, Identifiable, Hashable {
     let id: Int
     let address: String
     let name: String
@@ -36,6 +36,22 @@ struct LendMarket: Decodable, Identifiable, Hashable {
         totalRate = try c.decodeIfPresent(String.self, forKey: .totalRate)
     }
 
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(address, forKey: .address)
+        try c.encode(name, forKey: .name)
+        try c.encode(symbol, forKey: .symbol)
+        try c.encodeIfPresent(uiSymbol, forKey: .uiSymbol)
+        try c.encode(decimals, forKey: .decimals)
+        try c.encode(assetAddress, forKey: .assetAddress)
+        try c.encodeIfPresent(asset, forKey: .asset)
+        try c.encodeIfPresent(totalAssets, forKey: .totalAssets)
+        try c.encodeIfPresent(rewardsRate, forKey: .rewardsRate)
+        try c.encodeIfPresent(supplyRate, forKey: .supplyRate)
+        try c.encodeIfPresent(totalRate, forKey: .totalRate)
+    }
+
     var displaySymbol: String { asset?.symbol ?? uiSymbol ?? symbol }
     var iconURL: URL? { asset?.logoUrl.flatMap { URL(string: $0) } }
 
@@ -56,7 +72,7 @@ struct LendMarket: Decodable, Identifiable, Hashable {
     }
 }
 
-struct LendUnderlying: Decodable, Hashable {
+struct LendUnderlying: Codable, Hashable {
     let address: String
     let name: String
     let symbol: String
@@ -74,6 +90,16 @@ struct LendUnderlying: Decodable, Hashable {
         decimals = try c.decode(Int.self, forKey: .decimals)
         logoUrl = try c.decodeIfPresent(String.self, forKey: .logoUrl)
         price = try c.decodeIfPresent(String.self, forKey: .price)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(address, forKey: .address)
+        try c.encode(name, forKey: .name)
+        try c.encode(symbol, forKey: .symbol)
+        try c.encode(decimals, forKey: .decimals)
+        try c.encodeIfPresent(logoUrl, forKey: .logoUrl)
+        try c.encodeIfPresent(price, forKey: .price)
     }
 }
 

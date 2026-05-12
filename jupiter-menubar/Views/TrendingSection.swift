@@ -98,16 +98,18 @@ private struct ChangePill: View {
         let magnitude = abs((value as NSDecimalNumber).doubleValue)
         HStack(spacing: 2) {
             Image(systemName: positive ? "arrow.up" : "arrow.down")
-                .font(.system(size: 7, weight: .bold))
+                .font(.system(size: 7, weight: .heavy))
             Text(String(format: "%.2f%%", magnitude))
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(.system(size: 9, weight: .heavy, design: .rounded))
                 .monospacedDigit()
         }
-        .foregroundStyle(positive ? .green : .red)
+        .foregroundStyle(.white)
         .padding(.horizontal, 5)
         .padding(.vertical, 1.5)
         .background(
-            Capsule().fill((positive ? Color.green : Color.red).opacity(0.14))
+            Capsule().fill(positive
+                ? Color(red: 0.18, green: 0.55, blue: 0.30)
+                : Color(red: 0.78, green: 0.22, blue: 0.22))
         )
     }
 }

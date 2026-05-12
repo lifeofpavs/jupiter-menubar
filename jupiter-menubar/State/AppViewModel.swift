@@ -31,7 +31,24 @@ final class AppViewModel: ObservableObject {
 
     init(settings: SettingsStore) {
         self.settings = settings
+        if let snapshot = CacheStore.load() {
+            self.portfolios = snapshot.portfolios
+            self.positions = snapshot.positions
+            self.trending = snapshot.trending
+            self.lendMarkets = snapshot.lendMarkets
+            self.lastUpdated = snapshot.lastUpdated
+        }
         Task { await JupiterClient.shared.setApiKeyProvider { [weak settings] in settings?.apiKey } }
+    }
+
+    private func persistSnapshot() {
+        CacheStore.save(AppSnapshot(
+            portfolios: portfolios,
+            positions: positions,
+            trending: trending,
+            lendMarkets: lendMarkets,
+            lastUpdated: lastUpdated
+        ))
     }
 
     func start() {
@@ -61,6 +78,7 @@ final class AppViewModel: ObservableObject {
         async let marketsResult: () = refreshLendMarkets()
         _ = await (positionsResult, trendingResult, portfolioResult, marketsResult)
         lastUpdated = Date()
+        persistSnapshot()
     }
 
     private func refreshLendMarkets() async {

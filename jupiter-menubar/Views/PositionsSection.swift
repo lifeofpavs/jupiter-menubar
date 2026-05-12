@@ -10,11 +10,11 @@ struct PositionsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.l) {
+            exploreBlock
             if !wallets.isEmpty || !groupedByWallet.isEmpty {
                 positionsBlock
             }
             marketsBlock
-            exploreBlock
         }
         .padding(.horizontal, Theme.Space.m + 4)
     }
@@ -95,34 +95,28 @@ struct PositionsSection: View {
     }
 
     private var exploreBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Explore on jup.ag")
-                .sectionLabel()
-                .padding(.horizontal, Theme.Space.s)
-
-            HStack(spacing: Theme.Space.s) {
-                ExploreCard(
-                    title: "Multiply",
-                    subtitle: "Looped yield",
-                    icon: "arrow.triangle.2.circlepath",
-                    accent: .purple,
-                    url: "https://jup.ag/lend/multiply"
-                )
-                ExploreCard(
-                    title: "Strategies",
-                    subtitle: "Auto-managed",
-                    icon: "wand.and.stars",
-                    accent: .blue,
-                    url: "https://jup.ag/lend/strategies"
-                )
-                ExploreCard(
-                    title: "Borrow",
-                    subtitle: "Against collateral",
-                    icon: "arrow.up.arrow.down",
-                    accent: .orange,
-                    url: "https://jup.ag/lend/borrow"
-                )
-            }
+        HStack(spacing: 6) {
+            ExploreCard(
+                title: "Multiply",
+                subtitle: "Looped yield",
+                icon: "arrow.triangle.2.circlepath",
+                accent: .purple,
+                url: "https://jup.ag/lend/multiply"
+            )
+            ExploreCard(
+                title: "Strategies",
+                subtitle: "Auto-managed",
+                icon: "wand.and.stars",
+                accent: .blue,
+                url: "https://jup.ag/lend/strategies"
+            )
+            ExploreCard(
+                title: "Borrow",
+                subtitle: "Collateralized",
+                icon: "arrow.up.arrow.down",
+                accent: .orange,
+                url: "https://jup.ag/lend/borrow"
+            )
         }
     }
 
@@ -220,12 +214,12 @@ private struct AprPill: View {
 
     var body: some View {
         Text(String(format: "%.2f%% APY", (value as NSDecimalNumber).doubleValue))
-            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .font(.system(size: 9, weight: .heavy, design: .rounded))
             .tracking(0.2)
             .padding(.horizontal, 5)
             .padding(.vertical, 1.5)
-            .background(Capsule().fill(.green.opacity(0.16)))
-            .foregroundStyle(.green)
+            .foregroundStyle(.white)
+            .background(Capsule().fill(Color(red: 0.18, green: 0.55, blue: 0.30)))
     }
 }
 
@@ -246,23 +240,27 @@ private struct ExploreCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Image(systemName: icon)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(accent)
                     Spacer()
                     Image(systemName: "arrow.up.right")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(.tertiary)
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                     Text(subtitle)
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.tertiary)
                         .tracking(0.2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
             }
-            .padding(10)
+            .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.m, style: .continuous)
