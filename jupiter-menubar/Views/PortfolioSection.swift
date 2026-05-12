@@ -100,7 +100,9 @@ struct PortfolioSection: View {
     }
 
     private func sortedElements(_ elements: [PortfolioElement]) -> [PortfolioElement] {
-        elements.filter { $0.rolledValue > 0 }.sorted { $0.rolledValue > $1.rolledValue }
+        elements
+            .filter { $0.hasContent }
+            .sorted { Swift.abs($0.rolledValue) > Swift.abs($1.rolledValue) }
     }
 
     private func visibleTokens(_ p: WalletPortfolio) -> [WalletToken] {

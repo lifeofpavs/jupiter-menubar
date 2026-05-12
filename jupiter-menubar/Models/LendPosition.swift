@@ -3,10 +3,10 @@ import Foundation
 struct LendPosition: Codable, Identifiable, Hashable {
     let token: TokenInfo
     let ownerAddress: String
-    let shares: String
+    let shares: String?
     let underlyingAssets: String
-    let underlyingBalance: String
-    let allowance: String
+    let underlyingBalance: String?
+    let allowance: String?
 
     var id: String { "\(ownerAddress)-\(token.address)" }
 
@@ -23,7 +23,7 @@ struct LendPosition: Codable, Identifiable, Hashable {
 struct TokenInfo: Codable, Hashable {
     let address: String
     let symbol: String
-    let name: String
+    let name: String?
     let decimals: Int
     let assetSymbol: String?
     let assetUsdPrice: Decimal?
@@ -41,9 +41,9 @@ struct TokenInfo: Codable, Hashable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         address = try c.decode(String.self, forKey: .address)
-        symbol = try c.decode(String.self, forKey: .symbol)
-        name = try c.decode(String.self, forKey: .name)
-        decimals = try c.decode(Int.self, forKey: .decimals)
+        symbol = (try? c.decode(String.self, forKey: .symbol)) ?? ""
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+        decimals = (try? c.decode(Int.self, forKey: .decimals)) ?? 0
         assetSymbol = try c.decodeIfPresent(String.self, forKey: .assetSymbol)
         assetUsdPrice = try c.decodeDecimalIfPresent(forKey: .assetUsdPrice)
         usdPrice = try c.decodeDecimalIfPresent(forKey: .usdPrice)
@@ -56,7 +56,7 @@ struct TokenInfo: Codable, Hashable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(address, forKey: .address)
         try c.encode(symbol, forKey: .symbol)
-        try c.encode(name, forKey: .name)
+        try c.encodeIfPresent(name, forKey: .name)
         try c.encode(decimals, forKey: .decimals)
         try c.encodeIfPresent(assetSymbol, forKey: .assetSymbol)
         try c.encodeIfPresent(assetUsdPrice, forKey: .assetUsdPrice)

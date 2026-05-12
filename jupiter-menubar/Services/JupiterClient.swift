@@ -13,11 +13,31 @@ enum JupiterError: Error, LocalizedError {
         case .missingApiKey: return "Add a Jupiter API key in Settings."
         case .rateLimited(let ra): return "Rate limited (retry in \(Int(ra))s)."
         case .http(let status, _): return "HTTP \(status)"
-        case .decoding: return "Decoding failed"
+        case .decoding(let err): return "Decoding failed: \(decodingMessage(err))"
         case .transport(let err): return "Network error: \(err.localizedDescription)"
         case .invalidURL: return "Invalid URL"
         }
     }
+}
+
+private func decodingMessage(_ error: Error) -> String {
+    guard let decErr = error as? DecodingError else { return error.localizedDescription }
+    switch decErr {
+    case .keyNotFound(let key, let ctx):
+        return "missing key '\(key.stringValue)' at \(pathString(ctx.codingPath))"
+    case .typeMismatch(let type, let ctx):
+        return "type mismatch \(type) at \(pathString(ctx.codingPath))"
+    case .valueNotFound(let type, let ctx):
+        return "null \(type) at \(pathString(ctx.codingPath))"
+    case .dataCorrupted(let ctx):
+        return "data corrupted at \(pathString(ctx.codingPath))"
+    @unknown default:
+        return decErr.localizedDescription
+    }
+}
+
+private func pathString(_ path: [CodingKey]) -> String {
+    path.map { $0.intValue.map { "[\($0)]" } ?? ".\($0.stringValue)" }.joined()
 }
 
 actor JupiterClient {

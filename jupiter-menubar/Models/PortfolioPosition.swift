@@ -110,8 +110,21 @@ struct PortfolioElement: Codable, Identifiable {
     }
 
     var rolledValue: Decimal {
-        if let v = value, v > 0 { return v }
-        return assets.compactMap(\.value).reduce(0, +)
+        if let v = value { return v }
+        let supplied = assets
+            .filter { $0.tag != "borrowed" }
+            .compactMap(\.value)
+            .reduce(0, +)
+        let borrowed = assets
+            .filter { $0.tag == "borrowed" }
+            .compactMap { $0.value.map { Swift.abs($0) } }
+            .reduce(0, +)
+        return supplied - borrowed
+    }
+
+    var hasContent: Bool {
+        if Swift.abs(rolledValue) > Decimal(string: "0.01") ?? 0 { return true }
+        return assets.contains { ($0.value ?? 0) > 0 || ($0.amount ?? 0) > 0 }
     }
 }
 
